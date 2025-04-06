@@ -121,7 +121,7 @@
 								"value": "@pipeline().parameters.p_array",
 								"type": "Expression"
 							},
-							"isSequential": true,
+							"isSequential": false,
 							"activities": [
 								{
 									"name": "netflix_data",
@@ -232,6 +232,112 @@
 								"type": "DelimitedTextReadSettings"
 							}
 						}
+					},
+					{
+						"name": "ForEachFileInMetaData",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get Metadata from raw",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get Metadata from raw').output.childItems",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"activities": [
+								{
+									"name": "If Condition",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@startswith(item().name, 'netflix')",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "Copy data to netflix source",
+												"type": "Copy",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "DelimitedTextSource",
+														"storeSettings": {
+															"type": "AzureBlobFSReadSettings",
+															"recursive": true,
+															"enablePartitionDiscovery": false
+														},
+														"formatSettings": {
+															"type": "DelimitedTextReadSettings"
+														}
+													},
+													"sink": {
+														"type": "DelimitedTextSink",
+														"storeSettings": {
+															"type": "AzureBlobFSWriteSettings"
+														},
+														"formatSettings": {
+															"type": "DelimitedTextWriteSettings",
+															"quoteAllText": true,
+															"fileExtension": ".txt"
+														}
+													},
+													"enableStaging": false,
+													"translator": {
+														"type": "TabularTranslator",
+														"typeConversion": true,
+														"typeConversionSettings": {
+															"allowDataTruncation": true,
+															"treatBooleanAsNumber": false
+														}
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "DS_source_netflix_des",
+														"type": "DatasetReference",
+														"parameters": {
+															"file_name": {
+																"value": "@item().name",
+																"type": "Expression"
+															}
+														}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "DS_netflix_sink_des",
+														"type": "DatasetReference",
+														"parameters": {
+															"file_name": {
+																"value": "@item().name",
+																"type": "Expression"
+															}
+														}
+													}
+												]
+											}
+										]
+									}
+								}
+							]
+						}
 					}
 				],
 				"policy": {
@@ -242,19 +348,15 @@
 						"type": "array",
 						"defaultValue": [
 							{
-								"folder_name": "netflix_cast",
 								"file_name": "netflix_cast.csv"
 							},
 							{
-								"folder_name": "netflix_category",
 								"file_name": "netflix_category.csv"
 							},
 							{
-								"folder_name": "netflix_countries",
 								"file_name": "netflix_countries.csv"
 							},
 							{
-								"folder_name": "netflix_directors",
 								"file_name": "netflix_directors.csv"
 							}
 						]
@@ -265,7 +367,9 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/DS_netflix_metadata')]",
 				"[concat(variables('factoryId'), '/datasets/DS__netflix_source')]",
-				"[concat(variables('factoryId'), '/datasets/DS_netflix_sink')]"
+				"[concat(variables('factoryId'), '/datasets/DS_netflix_sink')]",
+				"[concat(variables('factoryId'), '/datasets/DS_source_netflix_des')]",
+				"[concat(variables('factoryId'), '/datasets/DS_netflix_sink_des')]"
 			]
 		},
 		{
@@ -1276,6 +1380,80 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/data_flow_source')]",
 				"[concat(variables('factoryId'), '/datasets/DS_sink_dataflow')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_source_netflix_des')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "datalake_connection",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"file_name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().file_name",
+							"type": "Expression"
+						},
+						"folderPath": "netflix",
+						"fileSystem": "raw"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/datalake_connection')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_netflix_sink_des')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "datalake_connection",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"file_name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().file_name",
+							"type": "Expression"
+						},
+						"folderPath": "netflix-data",
+						"fileSystem": "netflix-source"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/datalake_connection')]"
 			]
 		}
 	]
