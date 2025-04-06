@@ -33,7 +33,19 @@
 					"name": "netflixCategory"
 				}
 			],
-			"sinks": [],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DS_final_netflixx",
+						"type": "DatasetReference"
+					},
+					"name": "sinkmyaggragtedata",
+					"rejectedDataLinkedService": {
+						"referenceName": "datalake_connection",
+						"type": "LinkedServiceReference"
+					}
+				}
+			],
 			"transformations": [
 				{
 					"name": "joinCastAndCategory"
@@ -48,10 +60,10 @@
 					"name": "select1"
 				},
 				{
-					"name": "splitByCategories"
+					"name": "derivedCategories"
 				},
 				{
-					"name": "derivedCategories"
+					"name": "aggregateByShowID"
 				}
 			],
 			"scriptLines": [
@@ -107,9 +119,18 @@
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> select1",
-				"derivedCategories split(ERROR_FUNCTION(''),",
-				"     disjoint: false) ~> splitByCategories@(comedy, )",
-				"select1 derive(listed_in = split(listed_in, '&' )) ~> derivedCategories"
+				"select1 derive(listed_in = split(listed_in, '&' )) ~> derivedCategories",
+				"derivedCategories aggregate(groupBy(show_id),",
+				"     director = collect(director),",
+				"          country = collect(country),",
+				"          cast = collect(cast)) ~> aggregateByShowID",
+				"aggregateByShowID sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sinkmyaggragtedata"
 			]
 		}
 	}
