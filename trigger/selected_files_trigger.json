@@ -1,0 +1,18 @@
+{
+	"name": "selected_files_trigger",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Minute",
+				"interval": 15,
+				"startTime": "2025-04-05T18:39:00",
+				"endTime": "2025-04-05T18:50:00",
+				"timeZone": "India Standard Time"
+			}
+		}
+	}
+}
