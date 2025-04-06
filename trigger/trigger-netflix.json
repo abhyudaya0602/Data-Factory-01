@@ -1,0 +1,24 @@
+{
+	"name": "trigger-netflix",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "pipeline-practising1",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "BlobEventsTrigger",
+		"typeProperties": {
+			"blobPathBeginsWith": "/netflix-source/blobs/",
+			"ignoreEmptyBlobs": true,
+			"scope": "/subscriptions/29e244be-0e7e-4475-96e7-c41fad042e0a/resourceGroups/Data_Factory_01/providers/Microsoft.Storage/storageAccounts/deltalakeabhi01",
+			"events": [
+				"Microsoft.Storage.BlobCreated"
+			]
+		}
+	}
+}
