@@ -17,7 +17,7 @@
 	},
 	"resources": [
 		{
-			"name": "[concat(parameters('factoryName'), '/DS_netflix_dataflow_source3')]",
+			"name": "[concat(parameters('factoryName'), '/data_flow_source')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -30,9 +30,8 @@
 				"typeProperties": {
 					"location": {
 						"type": "AzureBlobFSLocation",
-						"fileName": "netflix_countries.csv",
-						"folderPath": "netflix-data",
-						"fileSystem": "netflix-source"
+						"folderPath": "csvfiles",
+						"fileSystem": "reporting"
 					},
 					"columnDelimiter": ",",
 					"escapeChar": "\\",
@@ -44,7 +43,7 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DS_netflix_dataflow_source4')]",
+			"name": "[concat(parameters('factoryName'), '/param_source_if')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -52,39 +51,22 @@
 					"referenceName": "datalake_connection",
 					"type": "LinkedServiceReference"
 				},
-				"annotations": [],
-				"type": "DelimitedText",
-				"typeProperties": {
-					"location": {
-						"type": "AzureBlobFSLocation",
-						"fileName": "netflix_category.csv",
-						"folderPath": "netflix-data",
-						"fileSystem": "netflix-source"
-					},
-					"columnDelimiter": ",",
-					"escapeChar": "\\",
-					"firstRowAsHeader": true,
-					"quoteChar": "\""
-				},
-				"schema": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_final_netflixx')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "datalake_connection",
-					"type": "LinkedServiceReference"
+				"parameters": {
+					"file_name": {
+						"type": "string"
+					}
 				},
 				"annotations": [],
 				"type": "DelimitedText",
 				"typeProperties": {
 					"location": {
 						"type": "AzureBlobFSLocation",
-						"fileSystem": "netflix-final"
+						"fileName": {
+							"value": "@dataset().file_name",
+							"type": "Expression"
+						},
+						"folderPath": "csvfilesdes",
+						"fileSystem": "destination"
 					},
 					"columnDelimiter": ",",
 					"escapeChar": "\\",
@@ -167,6 +149,313 @@
 				},
 				"annotations": [],
 				"lastPublishTime": "2025-04-05T15:08:22Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pipelinegit')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy data from github",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "HttpReadSettings",
+									"requestMethod": "GET"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_source_git",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_git_sink",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-04-04T17:20:55Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Transform csv')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "data_flow_source",
+								"type": "DatasetReference"
+							},
+							"name": "sourceCSV"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "DS_sink_dataflow",
+								"type": "DatasetReference"
+							},
+							"name": "sink"
+						}
+					],
+					"transformations": [
+						{
+							"name": "selectcols"
+						},
+						{
+							"name": "filterRows"
+						},
+						{
+							"name": "split1"
+						},
+						{
+							"name": "derivedColumn"
+						},
+						{
+							"name": "aggregate"
+						},
+						{
+							"name": "alterRows"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          transaction_id as short,",
+						"          transactional_date as timestamp,",
+						"          product_id as string,",
+						"          customer_id as short,",
+						"          payment as string,",
+						"          credit_card as long,",
+						"          loyalty_card as boolean,",
+						"          cost as double,",
+						"          quantity as short,",
+						"          price as double",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> sourceCSV",
+						"sourceCSV select(mapColumn(",
+						"          transaction_id,",
+						"          transactional_date,",
+						"          product_id,",
+						"          customer_id,",
+						"          payment,",
+						"          price",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> selectcols",
+						"selectcols filter(customer_id != 12) ~> filterRows",
+						"filterRows split(payment == 'visa',",
+						"     payment == 'mastercard',",
+						"     disjoint: false) ~> split1@(visa, mastercard, americanexpress)",
+						"split1@americanexpress derive(payment = coalesce(payment, 'N/A')) ~> derivedColumn",
+						"split1@visa aggregate(groupBy(customer_id),",
+						"     product_id = max(product_id)) ~> aggregate",
+						"aggregate alterRow(insertIf(1==1)) ~> alterRows",
+						"alterRows sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> sink"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/data_flow_source')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/transformaation netflix')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "DS_netflix_dataflow_source1",
+								"type": "DatasetReference"
+							},
+							"name": "netflixDirectors"
+						},
+						{
+							"dataset": {
+								"referenceName": "DS_netflix_dataflow_source2",
+								"type": "DatasetReference"
+							},
+							"name": "netflixCast"
+						},
+						{
+							"dataset": {
+								"referenceName": "DS_netflix_dataflow_source3",
+								"type": "DatasetReference"
+							},
+							"name": "netflixCountries"
+						},
+						{
+							"dataset": {
+								"referenceName": "DS_netflix_dataflow_source4",
+								"type": "DatasetReference"
+							},
+							"name": "netflixCategory"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "DS_final_netflixx",
+								"type": "DatasetReference"
+							},
+							"name": "sinkmyaggragtedata",
+							"rejectedDataLinkedService": {
+								"referenceName": "datalake_connection",
+								"type": "LinkedServiceReference"
+							}
+						}
+					],
+					"transformations": [
+						{
+							"name": "joinCastAndCategory"
+						},
+						{
+							"name": "joinDirector"
+						},
+						{
+							"name": "joinCountries"
+						},
+						{
+							"name": "select1"
+						},
+						{
+							"name": "derivedCategories"
+						},
+						{
+							"name": "aggregateByShowID"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          director as string,",
+						"          show_id as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> netflixDirectors",
+						"source(output(",
+						"          cast as string,",
+						"          show_id as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> netflixCast",
+						"source(output(",
+						"          country as string,",
+						"          show_id as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> netflixCountries",
+						"source(output(",
+						"          listed_in as string,",
+						"          show_id as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> netflixCategory",
+						"netflixCast, netflixCategory join(netflixCast@show_id == netflixCategory@show_id,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinCastAndCategory",
+						"joinCastAndCategory, netflixDirectors join(netflixCast@show_id == netflixDirectors@show_id,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinDirector",
+						"joinDirector, netflixCountries join(netflixCast@show_id == netflixCountries@show_id,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinCountries",
+						"joinCountries select(mapColumn(",
+						"          cast,",
+						"          show_id = netflixCast@show_id,",
+						"          listed_in,",
+						"          director,",
+						"          country",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select1",
+						"select1 derive(listed_in = split(listed_in, '&' )) ~> derivedCategories",
+						"derivedCategories aggregate(groupBy(show_id),",
+						"     director = collect(director),",
+						"          country = collect(country),",
+						"          cast = collect(cast)) ~> aggregateByShowID",
+						"aggregateByShowID sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> sinkmyaggragtedata"
+					]
+				}
 			},
 			"dependsOn": []
 		},
@@ -403,6 +692,46 @@
 								}
 							]
 						}
+					},
+					{
+						"name": "Data flow tranformation",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "ForEachFileInMetaData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "transformaation netflix",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"netflixDirectors": {},
+									"netflixCast": {},
+									"netflixCountries": {},
+									"netflixCategory": {},
+									"sinkmyaggragtedata": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
 					}
 				],
 				"policy": {
@@ -429,315 +758,8 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/pipelinegit')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Copy data from github",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"storeSettings": {
-									"type": "HttpReadSettings",
-									"requestMethod": "GET"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								}
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobFSWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_source_git",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_git_sink",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"annotations": [],
-				"lastPublishTime": "2025-04-04T17:20:55Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Transform csv')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"type": "MappingDataFlow",
-				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "data_flow_source",
-								"type": "DatasetReference"
-							},
-							"name": "sourceCSV"
-						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "DS_sink_dataflow",
-								"type": "DatasetReference"
-							},
-							"name": "sink"
-						}
-					],
-					"transformations": [
-						{
-							"name": "selectcols"
-						},
-						{
-							"name": "filterRows"
-						},
-						{
-							"name": "split1"
-						},
-						{
-							"name": "derivedColumn"
-						},
-						{
-							"name": "aggregate"
-						},
-						{
-							"name": "alterRows"
-						}
-					],
-					"scriptLines": [
-						"source(output(",
-						"          transaction_id as short,",
-						"          transactional_date as timestamp,",
-						"          product_id as string,",
-						"          customer_id as short,",
-						"          payment as string,",
-						"          credit_card as long,",
-						"          loyalty_card as boolean,",
-						"          cost as double,",
-						"          quantity as short,",
-						"          price as double",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> sourceCSV",
-						"sourceCSV select(mapColumn(",
-						"          transaction_id,",
-						"          transactional_date,",
-						"          product_id,",
-						"          customer_id,",
-						"          payment,",
-						"          price",
-						"     ),",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> selectcols",
-						"selectcols filter(customer_id != 12) ~> filterRows",
-						"filterRows split(payment == 'visa',",
-						"     payment == 'mastercard',",
-						"     disjoint: false) ~> split1@(visa, mastercard, americanexpress)",
-						"split1@americanexpress derive(payment = coalesce(payment, 'N/A')) ~> derivedColumn",
-						"split1@visa aggregate(groupBy(customer_id),",
-						"     product_id = max(product_id)) ~> aggregate",
-						"aggregate alterRow(insertIf(1==1)) ~> alterRows",
-						"alterRows sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     umask: 0022,",
-						"     preCommands: [],",
-						"     postCommands: [],",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> sink"
-					]
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/transformaation netflix')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"type": "MappingDataFlow",
-				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "DS_netflix_dataflow_source1",
-								"type": "DatasetReference"
-							},
-							"name": "netflixDirectors"
-						},
-						{
-							"dataset": {
-								"referenceName": "DS_netflix_dataflow_source2",
-								"type": "DatasetReference"
-							},
-							"name": "netflixCast"
-						},
-						{
-							"dataset": {
-								"referenceName": "DS_netflix_dataflow_source3",
-								"type": "DatasetReference"
-							},
-							"name": "netflixCountries"
-						},
-						{
-							"dataset": {
-								"referenceName": "DS_netflix_dataflow_source4",
-								"type": "DatasetReference"
-							},
-							"name": "netflixCategory"
-						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "DS_final_netflixx",
-								"type": "DatasetReference"
-							},
-							"name": "sinkmyaggragtedata",
-							"rejectedDataLinkedService": {
-								"referenceName": "datalake_connection",
-								"type": "LinkedServiceReference"
-							}
-						}
-					],
-					"transformations": [
-						{
-							"name": "joinCastAndCategory"
-						},
-						{
-							"name": "joinDirector"
-						},
-						{
-							"name": "joinCountries"
-						},
-						{
-							"name": "select1"
-						},
-						{
-							"name": "derivedCategories"
-						},
-						{
-							"name": "aggregateByShowID"
-						}
-					],
-					"scriptLines": [
-						"source(output(",
-						"          director as string,",
-						"          show_id as integer",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> netflixDirectors",
-						"source(output(",
-						"          cast as string,",
-						"          show_id as integer",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> netflixCast",
-						"source(output(",
-						"          country as string,",
-						"          show_id as integer",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> netflixCountries",
-						"source(output(",
-						"          listed_in as string,",
-						"          show_id as integer",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> netflixCategory",
-						"netflixCast, netflixCategory join(netflixCast@show_id == netflixCategory@show_id,",
-						"     joinType:'inner',",
-						"     matchType:'exact',",
-						"     ignoreSpaces: false,",
-						"     broadcast: 'auto')~> joinCastAndCategory",
-						"joinCastAndCategory, netflixDirectors join(netflixCast@show_id == netflixDirectors@show_id,",
-						"     joinType:'inner',",
-						"     matchType:'exact',",
-						"     ignoreSpaces: false,",
-						"     broadcast: 'auto')~> joinDirector",
-						"joinDirector, netflixCountries join(netflixCast@show_id == netflixCountries@show_id,",
-						"     joinType:'inner',",
-						"     matchType:'exact',",
-						"     ignoreSpaces: false,",
-						"     broadcast: 'auto')~> joinCountries",
-						"joinCountries select(mapColumn(",
-						"          cast,",
-						"          show_id = netflixCast@show_id,",
-						"          listed_in,",
-						"          director,",
-						"          country",
-						"     ),",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> select1",
-						"select1 derive(listed_in = split(listed_in, '&' )) ~> derivedCategories",
-						"derivedCategories aggregate(groupBy(show_id),",
-						"     director = collect(director),",
-						"          country = collect(country),",
-						"          cast = collect(cast)) ~> aggregateByShowID",
-						"aggregateByShowID sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     umask: 0022,",
-						"     preCommands: [],",
-						"     postCommands: [],",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> sinkmyaggragtedata"
-					]
-				}
-			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/DS_netflix_dataflow_source3')]",
-				"[concat(variables('factoryId'), '/datasets/DS_netflix_dataflow_source4')]",
-				"[concat(variables('factoryId'), '/datasets/DS_final_netflixx')]"
+				"[concat(variables('factoryId'), '/dataflows/transformaation netflix')]"
 			]
 		},
 		{
@@ -1062,81 +1084,8 @@
 				"lastPublishTime": "2025-04-05T09:31:32Z"
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/dataflows/Transform csv')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/pipeline-practising1')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Execute Pipeline practising",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "pipeline-practising",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Data flow tranformation",
-						"type": "ExecuteDataFlow",
-						"dependsOn": [
-							{
-								"activity": "Execute Pipeline practising",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataflow": {
-								"referenceName": "transformaation netflix",
-								"type": "DataFlowReference",
-								"parameters": {},
-								"datasetParameters": {
-									"netflixDirectors": {},
-									"netflixCast": {},
-									"netflixCountries": {},
-									"netflixCategory": {},
-									"sinkmyaggragtedata": {}
-								}
-							},
-							"staging": {},
-							"compute": {
-								"coreCount": 8,
-								"computeType": "General"
-							},
-							"traceLevel": "Fine"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/pipeline-practising')]",
-				"[concat(variables('factoryId'), '/dataflows/transformaation netflix')]"
+				"[concat(variables('factoryId'), '/dataflows/Transform csv')]",
+				"[concat(variables('factoryId'), '/datasets/param_source_if')]"
 			]
 		},
 		{

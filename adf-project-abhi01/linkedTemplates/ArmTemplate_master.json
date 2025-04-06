@@ -23,10 +23,6 @@
 			"type": "string",
 			"defaultValue": "/subscriptions/29e244be-0e7e-4475-96e7-c41fad042e0a/resourceGroups/Data_Factory_01/providers/Microsoft.Storage/storageAccounts/deltalakeabhi01"
 		},
-		"trigger-netflix_properties_typeProperties_scope": {
-			"type": "string",
-			"defaultValue": "/subscriptions/29e244be-0e7e-4475-96e7-c41fad042e0a/resourceGroups/Data_Factory_01/providers/Microsoft.Storage/storageAccounts/deltalakeabhi01"
-		},
 		"containerUri": {
 			"type": "string",
 			"metadata": "URI to storage account containing linked ARM templates"
@@ -62,9 +58,6 @@
 					},
 					"github_connection_properties_typeProperties_url": {
 						"value": "[parameters('github_connection_properties_typeProperties_url')]"
-					},
-					"trigger-netflix_properties_typeProperties_scope": {
-						"value": "[parameters('trigger-netflix_properties_typeProperties_scope')]"
 					}
 				}
 			},

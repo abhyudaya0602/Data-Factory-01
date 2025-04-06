@@ -16,9 +16,6 @@
 		},
 		"trigger_storage_properties_typeProperties_scope": {
 			"value": "/subscriptions/29e244be-0e7e-4475-96e7-c41fad042e0a/resourceGroups/Data_Factory_01/providers/Microsoft.Storage/storageAccounts/deltalakeabhi01"
-		},
-		"trigger-netflix_properties_typeProperties_scope": {
-			"value": "/subscriptions/29e244be-0e7e-4475-96e7-c41fad042e0a/resourceGroups/Data_Factory_01/providers/Microsoft.Storage/storageAccounts/deltalakeabhi01"
 		}
 	}
 }
