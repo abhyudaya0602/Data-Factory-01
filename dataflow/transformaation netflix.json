@@ -1,0 +1,116 @@
+{
+	"name": "transformaation netflix",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DS_netflix_dataflow_source1",
+						"type": "DatasetReference"
+					},
+					"name": "netflixDirectors"
+				},
+				{
+					"dataset": {
+						"referenceName": "DS_netflix_dataflow_source2",
+						"type": "DatasetReference"
+					},
+					"name": "netflixCast"
+				},
+				{
+					"dataset": {
+						"referenceName": "DS_netflix_dataflow_source3",
+						"type": "DatasetReference"
+					},
+					"name": "netflixCountries"
+				},
+				{
+					"dataset": {
+						"referenceName": "DS_netflix_dataflow_source4",
+						"type": "DatasetReference"
+					},
+					"name": "netflixCategory"
+				}
+			],
+			"sinks": [],
+			"transformations": [
+				{
+					"name": "joinCastAndCategory"
+				},
+				{
+					"name": "joinDirector"
+				},
+				{
+					"name": "joinCountries"
+				},
+				{
+					"name": "select1"
+				},
+				{
+					"name": "splitByCategories"
+				},
+				{
+					"name": "derivedCategories"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          director as string,",
+				"          show_id as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> netflixDirectors",
+				"source(output(",
+				"          cast as string,",
+				"          show_id as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> netflixCast",
+				"source(output(",
+				"          country as string,",
+				"          show_id as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> netflixCountries",
+				"source(output(",
+				"          listed_in as string,",
+				"          show_id as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> netflixCategory",
+				"netflixCast, netflixCategory join(netflixCast@show_id == netflixCategory@show_id,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinCastAndCategory",
+				"joinCastAndCategory, netflixDirectors join(netflixCast@show_id == netflixDirectors@show_id,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinDirector",
+				"joinDirector, netflixCountries join(netflixCast@show_id == netflixCountries@show_id,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinCountries",
+				"joinCountries select(mapColumn(",
+				"          cast,",
+				"          show_id = netflixCast@show_id,",
+				"          listed_in,",
+				"          director,",
+				"          country",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"derivedCategories split(ERROR_FUNCTION(''),",
+				"     disjoint: false) ~> splitByCategories@(comedy, )",
+				"select1 derive(listed_in = split(listed_in, '&' )) ~> derivedCategories"
+			]
+		}
+	}
+}
