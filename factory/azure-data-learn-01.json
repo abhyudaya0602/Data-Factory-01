@@ -1,0 +1,9 @@
+{
+	"name": "azure-data-learn-01",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "fb433047-af89-4018-af23-3c32d6b8769a",
+		"tenantId": "c46ceff5-a0b6-435e-a216-ba0e1b6fed84"
+	}
+}
