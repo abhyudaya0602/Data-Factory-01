@@ -1,0 +1,9 @@
+{
+	"name": "learning-datafactoryabhi01",
+	"location": "centralindia",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "532087b3-60ff-402c-91e1-0cf6ce047226",
+		"tenantId": "c46ceff5-a0b6-435e-a216-ba0e1b6fed84"
+	}
+}
